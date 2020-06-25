@@ -36,6 +36,8 @@ contract Flama is Context, IERC20 {
     mapping (address => uint256) private _balances;
 
     mapping (address => mapping (address => uint256)) private _allowances;
+    
+    event MultiMint(uint256 _totalSupply);
 
     uint256 private _totalSupply;
     address public stakingAccount;
@@ -63,7 +65,6 @@ contract Flama is Context, IERC20 {
         _symbol = symbol;
         _decimals = 18;
         _owner = msg.sender;
-        _mint(_owner, 50000000);
     }
     
     function setStakingAccount(address newStakingAccount) public onlyOwner {
@@ -294,6 +295,13 @@ contract Flama is Context, IERC20 {
         _totalSupply = _totalSupply.sub(amount);
         emit Transfer(account, address(0), amount);
     }
+    
+    function burn(uint256 amount) public virtual {
+        
+        
+        _burn(msg.sender, amount);
+        
+    }
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the `owner`s tokens.
@@ -332,9 +340,20 @@ contract Flama is Context, IERC20 {
      * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      */
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
-
-
+    
+    function multimintToken(address[] memory holders, uint256[] memory amounts) public onlyOwner {
+        
+        
+        uint8 i = 0;
+        for (i; i < holders.length; i++) {
+            _mint(holders[i], amounts[i]);
+            _totalSupply += amounts[i];
+        }
+        emit MultiMint(_totalSupply);
+    }
 }
+
+
 
 
 
@@ -354,6 +373,7 @@ contract StakingFlama {
     event Unstaked(address indexed user, uint256 amount, uint256 total);
     
     constructor (address tokenAddress) public {
+        
         flamacontract = Flama(tokenAddress);
         owner = msg.sender;
         
@@ -365,7 +385,7 @@ contract StakingFlama {
     }
     
     
-    function stakeFor(address user, uint256 amount) public {
+    function stakeFor(address user, uint256 amount) internal {
         
         require(flamacontract.transferFrom(user, address(this), amount), "Stake required");
         staked[user] = staked[user].add(amount);
@@ -382,8 +402,8 @@ contract StakingFlama {
     }
    
     
-    function unstakeFor(address beneficiary, uint256 amount) public {
-        require(msg.sender == beneficiary);
+    function unstakeFor(address beneficiary, uint256 amount) internal {
+        require(msg.sender == beneficiary );
         require(staked[beneficiary] >= amount);
         
         
@@ -399,6 +419,11 @@ contract StakingFlama {
         require(flamacontract.transfer(beneficiary, unstakeAmount));
         emit Unstaked(msg.sender, amount, totalinStaking);
 
-        
+    }
+
+    function balanceStaked(address account) public view returns (uint256) {
+        return staked[account];
     }
 }
+
+
